@@ -1,35 +1,70 @@
 package pageable
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"github.com/siriusa51/gorm-pageable/dal/model"
+	"github.com/siriusa51/gorm-pageable/dal/types"
+	"github.com/stretchr/testify/assert"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gen"
+	"gorm.io/gen/field"
+	"gorm.io/gorm"
 	"testing"
 )
 
 func TestPageQuery(t *testing.T) {
-	// WIP
-}
+	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db = db.Debug()
 
-func TestSetDefaultRPP(t *testing.T) {
-	//set valid rpp
-	if SetDefaultRPP(25) != nil {
-		t.Fatal("set valid rpp but occur an error")
-	}
-	//set invalid rpp
-	if SetDefaultRPP(-1) == nil {
-		t.Fatal("set invalid rpp but occur no error")
-	}
-}
+	q := model.Use(db)
+	_ = db.AutoMigrate(types.User{})
 
-func TestSetRecovery(t *testing.T) {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Fatal(fmt.Sprint(err))
-		}
-	}()
-	SetRecovery(func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
+	udo := q.User.WithContext(context.TODO())
+	items := make([]*types.User, 0)
+	size := 20
+	for i := 0; i < size; i++ {
+		items = append(items, &types.User{
+			Name:        fmt.Sprintf("user-%d", i),
+			Description: fmt.Sprintf("desc-%d", i),
+		})
+	}
+	_ = udo.Create(items...)
+
+	p, err := PageQuery[*types.User](&PageParameter{
+		PageNow:    1,
+		RawPerPage: 0,
+		Dao:        udo.As(udo.TableName()),
 	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, size, len(p.Raws))
+
+	p, err = PageQuery[*types.User](&PageParameter{
+		PageNow:    1,
+		RawPerPage: 10,
+		Dao:        udo.As(udo.TableName()),
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 10, len(p.Raws))
+
+	p, err = PageQuery[*types.User](&PageParameter{
+		PageNow:    1,
+		RawPerPage: 5,
+		Dao:        udo.As(udo.TableName()),
+		Condition:  []gen.Condition{q.User.Name.Like("user-1%")},
+		OrderBy:    []field.Expr{q.User.Name.Desc()},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 5, len(p.Raws))
+
+	p, err = p.GetNextPage()
+	assert.NoError(t, err)
+	assert.Equal(t, 5, len(p.Raws))
+
+	p, err = p.GetNextPage()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(p.Raws))
 }
