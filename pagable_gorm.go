@@ -9,7 +9,7 @@ type PageParameter struct {
 	PageNow    int
 	RawPerPage int
 	// for conditional queries
-	Condition []gen.Condition
+	Condition [][]gen.Condition
 	// for sorting results
 	OrderBy []field.Expr
 	Dao     gen.Dao
@@ -59,7 +59,10 @@ func PageQuery[T any](param *PageParameter) (*PageResponse[T], error) {
 
 	query := param.Dao
 	if param.Condition != nil && len(param.Condition) > 0 {
-		query = query.Where(param.Condition...)
+		query = query.Where(param.Condition[0]...)
+		for _, cond := range param.Condition[1:] {
+			query = query.Or(cond...)
+		}
 	}
 
 	// get total count of the table

@@ -53,7 +53,7 @@ func TestPageQuery(t *testing.T) {
 		PageNow:    1,
 		RawPerPage: 5,
 		Dao:        udo.As(udo.TableName()),
-		Condition:  []gen.Condition{q.User.Name.Like("user-1%")},
+		Condition:  [][]gen.Condition{{q.User.Name.Like("user-1%")}},
 		OrderBy:    []field.Expr{q.User.Name.Desc()},
 	})
 
@@ -67,4 +67,15 @@ func TestPageQuery(t *testing.T) {
 	p, err = p.GetNextPage()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(p.Raws))
+
+	p, err = PageQuery[*types.User](&PageParameter{
+		PageNow:    1,
+		RawPerPage: 5,
+		Dao:        udo.As(udo.TableName()),
+		Condition:  [][]gen.Condition{{q.User.Name.Value("user-1")}, {q.User.Name.Value("user-2")}},
+		OrderBy:    []field.Expr{q.User.Name.Desc()},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(p.Raws))
 }
