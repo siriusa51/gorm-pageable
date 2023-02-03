@@ -10,6 +10,9 @@ type PageParameter struct {
 	RawPerPage int
 	// for conditional queries
 	Condition [][]gen.Condition
+	// condition function...
+	// select Condition or ConditionFunc
+	ConditionFunc func(query gen.Dao) gen.Dao
 	// for sorting results
 	OrderBy []field.Expr
 	Dao     gen.Dao
@@ -58,7 +61,10 @@ func PageQuery[T any](param *PageParameter) (*PageResponse[T], error) {
 	}
 
 	query := param.Dao
-	if param.Condition != nil && len(param.Condition) > 0 {
+
+	if param.ConditionFunc != nil {
+		query = param.ConditionFunc(query)
+	} else if param.Condition != nil && len(param.Condition) > 0 {
 		query = query.Where(param.Condition[0]...)
 		for _, cond := range param.Condition[1:] {
 			query = query.Or(cond...)

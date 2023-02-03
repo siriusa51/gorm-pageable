@@ -78,4 +78,17 @@ func TestPageQuery(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(p.Raws))
+
+	p, err = PageQuery[*types.User](&PageParameter{
+		PageNow:    1,
+		RawPerPage: 5,
+		Dao:        udo.As(udo.TableName()),
+		ConditionFunc: func(query gen.Dao) gen.Dao {
+			return query.Where(q.User.Name.Value("user-1")).Or(q.User.Name.Value("user-2"))
+		},
+		OrderBy: []field.Expr{q.User.Name.Desc()},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(p.Raws))
 }
