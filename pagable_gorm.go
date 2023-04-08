@@ -8,14 +8,13 @@ import (
 type PageParameter struct {
 	PageNow    int
 	RawPerPage int
-	// for conditional queries
-	Condition [][]gen.Condition
 	// condition function...
 	// select Condition or ConditionFunc
 	ConditionFunc func(query gen.Dao) gen.Dao
 	// for sorting results
 	OrderBy []field.Expr
 	Dao     gen.Dao
+	Selects []field.Expr
 }
 
 type PageResponse[T any] struct {
@@ -64,17 +63,16 @@ func PageQuery[T any](param *PageParameter) (*PageResponse[T], error) {
 
 	if param.ConditionFunc != nil {
 		query = param.ConditionFunc(query)
-	} else if param.Condition != nil && len(param.Condition) > 0 {
-		query = query.Where(param.Condition[0]...)
-		for _, cond := range param.Condition[1:] {
-			query = query.Or(cond...)
-		}
 	}
 
 	// get total count of the table
 	count64, err := query.Count()
 	if err != nil {
 		return nil, err
+	}
+
+	if len(param.Selects) > 0 {
+		query = query.Select(param.Selects...)
 	}
 
 	if param.OrderBy != nil && len(param.OrderBy) > 0 {
